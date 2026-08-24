@@ -53,11 +53,18 @@ def _extract_habit(text):
     return m.group(1).strip() if m else ""
 
 
-def _phrase(habit, streak, tier, extra=""):
+def _phrase(habit, streak, tier, extra="", best=None, pb=False):
     hint = TIER_HINTS.get(tier, "")
+    best_txt = ""
+    if best is not None:
+        if pb:
+            best_txt = f" That's your all-time best ({best}d) - personal record."
+        else:
+            best_txt = f" All-time best: {best}d."
     if tier == "restart":
-        return f"No streak on {habit} right now - {hint}. Do it today and we're back at day 1. {extra}".strip()
-    return f"{habit}: {streak} day streak - {hint}. {extra}".strip()
+        return (f"No streak on {habit} right now - {hint}. Do it today and we're back at day 1."
+                f"{best_txt} {extra}").strip()
+    return f"{habit}: {streak} day streak - {hint}.{best_txt} {extra}".strip()
 
 
 class _Completions:
@@ -77,8 +84,12 @@ class _Completions:
             r = json.loads(tool_msgs[-1]["content"])
             if not r.get("habits"):
                 return _Resp(_Msg(content="Nothing tracked yet - name one habit and I'll start it today."))
-            rows = ", ".join(f"{h['habit']} {h['streak']}d" for h in r["habits"])
-            return _Resp(_Msg(content=_phrase(r["best"], r["streak"], r["tier"], f"(all: {rows})")))
+            rows = ", ".join(
+                f"{h['habit']} {h['streak']}d (best {h['longest_streak']}d)" for h in r["habits"])
+            return _Resp(_Msg(content=_phrase(
+                r["best"], r["streak"], r["tier"], f"(all: {rows})",
+                best=r.get("longest_streak"),
+                pb=r.get("streak", 0) > 0 and r.get("streak") == r.get("longest_streak"))))
 
         # --- pure streak question ---
         asking = any(k in low for k in ["streak", "how am i", "how many days"]) and \
@@ -89,7 +100,9 @@ class _Completions:
             r = json.loads(tool_msgs[-1]["content"])
             if not r.get("exists", False):
                 return _Resp(_Msg(content=f"No record yet for '{r.get('habit', habit)}'. Want to log it today?"))
-            return _Resp(_Msg(content=_phrase(r["habit"], r["streak"], r["tier"])))
+            return _Resp(_Msg(content=_phrase(r["habit"], r["streak"], r["tier"],
+                                             best=r.get("longest_streak"),
+                                             pb=r.get("at_personal_best", False))))
 
         # --- log flow: log_habit -> get_streak -> speak ---
         if "log_habit" not in called:
@@ -102,7 +115,9 @@ class _Completions:
         r = json.loads(tool_msgs[-1]["content"])
         logged = json.loads(tool_msgs[0]["content"])
         extra = "Already counted for today." if logged.get("already_logged_today") else ""
-        return _Resp(_Msg(content=_phrase(r["habit"], r["streak"], r["tier"], extra)))
+        return _Resp(_Msg(content=_phrase(r["habit"], r["streak"], r["tier"], extra,
+                                          best=r.get("longest_streak"),
+                                          pb=r.get("at_personal_best", False))))
 
 
 class _Chat:

@@ -30,3 +30,6 @@ message from streak length. Solo scope, GitHub Models lane. Deliberately NO web/
 - P1: run against real gpt-4o once GITHUB_TOKEN is added (only env change needed)
 - P2: longest-ever streak (historical max) alongside current streak
 - P2: weekly summary / reminder tiers
+
+## 2026-06 update
+- Added all-time best streak: `longest_streak()` in tools.py; exposed as `longest_streak` + `at_personal_best` in get_streak/log_habit, and per-habit current-vs-best rows in most_consistent. Seed data now gives `read` an older 6-day run so best != current. Notebook prints a current vs best table.

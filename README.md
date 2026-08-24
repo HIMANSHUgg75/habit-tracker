@@ -2,9 +2,10 @@
 
 A tiny Python agent that keeps one person consistent on their habits. It exposes two real
 tools — `log_habit(name)` records today's calendar date for a habit and returns the new
-streak, and `get_streak(name)` reads the stored history back and reports the current streak
-plus whether it is active or broken (a third bonus tool, `most_consistent()`, scans every
-habit and returns the one with the longest live streak). The agent runs a plan-act loop in
+streak, and `get_streak(name)` reads the stored history back and reports the current streak,
+the habit's all-time best (longest ever) streak, and whether it is active or broken (a third
+bonus tool, `most_consistent()`, scans every habit and returns the one with the longest live
+streak plus a current-vs-best table). The agent runs a plan-act loop in
 `agent.py`: it sends the goal and the tool schemas to the model, detects `tool_calls`,
 executes them through a validated dispatcher, appends the results as `tool` messages and
 calls the model again — so "I meditated today" becomes `log_habit` → look at the result →
@@ -65,3 +66,4 @@ code change.
 | Broken streak | `current_streak()` returns 0 if last log is older than yesterday |
 | Unknown habit | `get_streak` returns `exists: false`, "no record yet" |
 | Why JSON | transparent, zero setup, survives restart, enough for one user |
+| Current vs all-time best streak | `tools.longest_streak()` scans full history; surfaced as `longest_streak` / `at_personal_best` |

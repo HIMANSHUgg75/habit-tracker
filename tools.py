@@ -62,6 +62,18 @@ def current_streak(dates):
     return streak
 
 
+def longest_streak(dates):
+    """All-time best run of consecutive calendar days, anywhere in the history."""
+    if not dates:
+        return 0
+    days = sorted({_parse(d) for d in dates})
+    best = run = 1
+    for prev, nxt in zip(days, days[1:]):
+        run = run + 1 if (nxt - prev).days == 1 else 1
+        best = max(best, run)
+    return best
+
+
 def tier_for(streak):
     """Tier computed in code; the LLM phrases it."""
     if streak <= 0:
@@ -98,13 +110,15 @@ def log_habit(name):
         data[key] = sorted(set(dates))
         _save(data)
 
-    streak = current_streak(data.get(key, dates))
+    stored = data.get(key, dates)
+    streak = current_streak(stored)
     return {
         "ok": True,
         "habit": key,
         "date": today,
         "already_logged_today": already,
         "streak": streak,
+        "longest_streak": longest_streak(stored),
         "tier": tier_for(streak),
         "message": ("Already logged today, streak unchanged."
                     if already else "Logged for today."),
@@ -120,7 +134,8 @@ def get_streak(name):
     data = _load()
     if key not in data or not data[key]:
         return {"ok": True, "habit": key, "exists": False, "streak": 0,
-                "tier": "restart", "message": "No record yet for this habit.",
+                "longest_streak": 0, "tier": "restart",
+                "message": "No record yet for this habit.",
                 "known_habits": sorted(data.keys())}
 
     dates = sorted(set(data[key]))
@@ -130,6 +145,8 @@ def get_streak(name):
         "habit": key,
         "exists": True,
         "streak": streak,
+        "longest_streak": longest_streak(dates),
+        "at_personal_best": streak > 0 and streak == longest_streak(dates),
         "active": streak > 0,
         "tier": tier_for(streak),
         "last_logged": dates[-1],
@@ -142,11 +159,16 @@ def most_consistent():
     data = _load()
     if not data:
         return {"ok": True, "habits": [], "message": "No habits tracked yet."}
-    rows = [{"habit": h, "streak": current_streak(d), "total_days": len(set(d))}
+    rows = [{"habit": h, "streak": current_streak(d),
+             "longest_streak": longest_streak(d), "total_days": len(set(d))}
             for h, d in data.items()]
-    rows.sort(key=lambda r: (-r["streak"], -r["total_days"], r["habit"]))
+    rows.sort(key=lambda r: (-r["streak"], -r["longest_streak"], r["habit"]))
     best = rows[0]
+    all_time = max(rows, key=lambda r: (r["longest_streak"], r["total_days"]))
     return {"ok": True, "best": best["habit"], "streak": best["streak"],
+            "longest_streak": best["longest_streak"],
+            "all_time_best_habit": all_time["habit"],
+            "all_time_best_streak": all_time["longest_streak"],
             "tier": tier_for(best["streak"]), "habits": rows}
 
 
@@ -157,7 +179,8 @@ def seed_demo_data():
     today = _today()
     data = {
         "meditate": [(today - timedelta(days=i)).strftime(DATE_FMT) for i in range(1, 8)],
-        "read": [(today - timedelta(days=i)).strftime(DATE_FMT) for i in range(1, 4)],
+        "read": [(today - timedelta(days=i)).strftime(DATE_FMT) for i in range(1, 4)]
+                + [(today - timedelta(days=i)).strftime(DATE_FMT) for i in range(20, 26)],
         "gym": [(today - timedelta(days=i)).strftime(DATE_FMT) for i in range(5, 9)],
     }
     for k in data:
@@ -194,7 +217,7 @@ TOOL_SCHEMAS = [
         "type": "function",
         "function": {
             "name": "get_streak",
-            "description": "Get the current streak for a habit. Returns 'no record yet' if unknown.",
+            "description": "Get the current streak AND the all-time best (longest ever) streak for a habit. Returns 'no record yet' if unknown.",
             "parameters": {
                 "type": "object",
                 "properties": {"name": {"type": "string"}},
@@ -206,7 +229,7 @@ TOOL_SCHEMAS = [
         "type": "function",
         "function": {
             "name": "most_consistent",
-            "description": "Scan all tracked habits and return the one with the longest current streak.",
+            "description": "Scan all tracked habits and return the one with the longest current streak, plus each habit's current and all-time best streak.",
             "parameters": {"type": "object", "properties": {}},
         },
     },

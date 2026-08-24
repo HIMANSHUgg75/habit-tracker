@@ -26,9 +26,12 @@ Encouragement tiers (you decide which one applies from the tool output):
 - streak 7+ -> {TIER_HINTS['strong']}
 
 The tool output also contains a "tier" field computed in code; use it as a sanity check
-but phrase the message yourself. Never invent habit names or streak numbers -- only use
-what the tools returned. If a habit has no record, say so and offer to start it today.
-Keep replies under 35 words.
+but phrase the message yourself. Tool output also has "longest_streak" (the habit's all-time
+best) -- mention it alongside the current streak, and call it out when the user is matching
+or beating their personal best ("at_personal_best": true). Never invent habit names or streak
+numbers -- only use what the tools returned. If a habit has no record, say so and offer to
+start it today.
+Keep replies under 45 words.
 """
 
 
