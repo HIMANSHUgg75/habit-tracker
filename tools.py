@@ -7,6 +7,7 @@ from datetime import date, datetime, timedelta
 HABITS_FILE = os.path.join(os.path.dirname(os.path.abspath(__file__)), "habits.json")
 DATE_FMT = "%Y-%m-%d"
 
+# This file is basically a tiny habit-tracker engine. It stores dates in habits.json, calculates streaks, and exposes a few tools that an LLM or app can call.
 
 # ---------- persistence ----------
 
