@@ -97,13 +97,15 @@ async def get_status_checks():
 app.include_router(api_router)
 
 FRONTEND_BUILD_DIR = ROOT_DIR.parent / "frontend" / "build"
+FRONTEND_PUBLIC_DIR = ROOT_DIR.parent / "frontend" / "public"
 
 if FRONTEND_BUILD_DIR.is_dir():
     @app.get("/{path:path}")
     async def serve_frontend(path: str):
-        requested_file = (FRONTEND_BUILD_DIR / path).resolve()
-        if requested_file.is_file() and FRONTEND_BUILD_DIR.resolve() in requested_file.parents:
-            return FileResponse(requested_file)
+        for frontend_dir in (FRONTEND_BUILD_DIR, FRONTEND_PUBLIC_DIR):
+            requested_file = (frontend_dir / path).resolve()
+            if requested_file.is_file() and frontend_dir.resolve() in requested_file.parents:
+                return FileResponse(requested_file)
         return FileResponse(FRONTEND_BUILD_DIR / "index.html")
 
 app.add_middleware(
