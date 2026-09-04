@@ -1,4 +1,5 @@
 from fastapi import FastAPI, APIRouter, HTTPException
+from fastapi.responses import FileResponse
 from dotenv import load_dotenv
 from starlette.middleware.cors import CORSMiddleware
 import os
@@ -94,6 +95,16 @@ async def get_status_checks():
 
 # Include the router in the main app
 app.include_router(api_router)
+
+FRONTEND_BUILD_DIR = ROOT_DIR.parent / "frontend" / "build"
+
+if FRONTEND_BUILD_DIR.is_dir():
+    @app.get("/{path:path}")
+    async def serve_frontend(path: str):
+        requested_file = (FRONTEND_BUILD_DIR / path).resolve()
+        if requested_file.is_file() and FRONTEND_BUILD_DIR.resolve() in requested_file.parents:
+            return FileResponse(requested_file)
+        return FileResponse(FRONTEND_BUILD_DIR / "index.html")
 
 app.add_middleware(
     CORSMiddleware,
