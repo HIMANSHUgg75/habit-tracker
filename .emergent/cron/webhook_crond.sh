@@ -44,3 +44,5 @@ elif command -v crond >/dev/null 2>&1; then
 fi
 echo "webhook_crond: no cron daemon (cron/crond) installed in image" >&2
 exit 127
+
+

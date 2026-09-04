@@ -1,23 +1,30 @@
-from fastapi import FastAPI, APIRouter
+from fastapi import FastAPI, APIRouter, HTTPException
 from dotenv import load_dotenv
 from starlette.middleware.cors import CORSMiddleware
-from motor.motor_asyncio import AsyncIOMotorClient
 import os
 import logging
 from pathlib import Path
 from pydantic import BaseModel, Field, ConfigDict
 from typing import List
 import uuid
+import sys
 from datetime import datetime, timezone
 
-
 ROOT_DIR = Path(__file__).parent
+
+sys.path.insert(0, str(ROOT_DIR.parent))
+from tools import get_streak, log_habit, most_consistent
+
 load_dotenv(ROOT_DIR / '.env')
 
 # MongoDB connection
-mongo_url = os.environ['MONGO_URL']
-client = AsyncIOMotorClient(mongo_url)
-db = client[os.environ['DB_NAME']]
+try:
+    from motor.motor_asyncio import AsyncIOMotorClient
+    client = AsyncIOMotorClient(os.environ.get('MONGO_URL', 'mongodb://localhost:27017'))
+    db = client[os.environ.get('DB_NAME', 'habit_tracker')]
+except ImportError:
+    client = None
+    db = None
 
 # Create the main app without a prefix
 app = FastAPI()
@@ -37,13 +44,30 @@ class StatusCheck(BaseModel):
 class StatusCheckCreate(BaseModel):
     client_name: str
 
+class HabitRequest(BaseModel):
+    name: str
+
 # Add your routes to the router instead of directly to app
 @api_router.get("/")
 async def root():
-    return {"message": "Hello World"}
+    return {"message": "Habit Tracker API", "endpoints": ["/api/habits/log", "/api/habits/{name}", "/api/habits/summary"]}
+
+@api_router.post("/habits/log")
+async def log_habit_api(input: HabitRequest):
+    return log_habit(input.name)
+
+@api_router.get("/habits/summary")
+async def habits_summary():
+    return most_consistent()
+
+@api_router.get("/habits/{name}")
+async def habit_streak(name: str):
+    return get_streak(name)
 
 @api_router.post("/status", response_model=StatusCheck)
 async def create_status_check(input: StatusCheckCreate):
+    if db is None:
+        raise HTTPException(status_code=503, detail="MongoDB status storage is unavailable")
     status_dict = input.model_dump()
     status_obj = StatusCheck(**status_dict)
     
@@ -56,6 +80,8 @@ async def create_status_check(input: StatusCheckCreate):
 
 @api_router.get("/status", response_model=List[StatusCheck])
 async def get_status_checks():
+    if db is None:
+        raise HTTPException(status_code=503, detail="MongoDB status storage is unavailable")
     # Exclude MongoDB's _id field from the query results
     status_checks = await db.status_checks.find({}, {"_id": 0}).to_list(1000)
     
@@ -86,4 +112,6 @@ logger = logging.getLogger(__name__)
 
 @app.on_event("shutdown")
 async def shutdown_db_client():
-    client.close()
+    if client is not None:
+        client.close()
+

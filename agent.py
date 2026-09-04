@@ -14,6 +14,7 @@ SYSTEM_PROMPT = f"""You are a habit-streak coach agent.
 
 You have tools: log_habit(name), get_streak(name), most_consistent().
 
+
 How to work:
 1. If the user says they did a habit, call log_habit first.
 2. Then call get_streak for that habit to confirm the real streak from memory.
@@ -39,7 +40,11 @@ def _client():
     token = os.environ.get("GITHUB_TOKEN")
     if not token:
         return None
-    from openai import OpenAI
+    try:
+        from openai import OpenAI
+    except ModuleNotFoundError:
+        print("[warning] openai is not installed; using offline mock.")
+        return None
     return OpenAI(base_url=BASE_URL, api_key=token)
 
 
@@ -64,20 +69,34 @@ def dispatch(name, raw_args):
 
 
 def run_agent(goal, verbose=True, client=None):
+
     """The plan-act loop: model -> tool_calls -> results -> model -> ... -> final text."""
+
+
     client = client or _client() or MockLLM()
+
     messages = [
         {"role": "system", "content": SYSTEM_PROMPT},
         {"role": "user", "content": goal},
     ]
+
     trace = []
     if verbose:
         print(f"USER GOAL: {goal}")
 
     for step in range(1, MAX_STEPS + 1):
-        resp = client.chat.completions.create(
-            model=MODEL, messages=messages, tools=TOOL_SCHEMAS, temperature=0.4
-        )
+        try:
+            resp = client.chat.completions.create(
+                model=MODEL, messages=messages, tools=TOOL_SCHEMAS, temperature=0.4
+            )
+        except Exception as exc:
+            if isinstance(client, MockLLM):
+                raise
+            print(f"[warning] Model unavailable ({exc}); using offline mock.")
+            client = MockLLM()
+            resp = client.chat.completions.create(
+                model=MODEL, messages=messages, tools=TOOL_SCHEMAS, temperature=0.4
+            )
         msg = resp.choices[0].message
         calls = msg.tool_calls or []
 
@@ -113,3 +132,125 @@ def run_agent(goal, verbose=True, client=None):
 if __name__ == "__main__":
     run_agent("I meditated today")
     run_agent("Which habit am I most consistent with?")
+
+# the file is the agent/brain layer that sits on top of the habit-tracking code we showed earlier
+
+# the previous file for responsible for storing and calculating habits.
+
+# the file is responsible for talking to the LLM , dec deciding which tool to call , executing it and giving the result back to the LLM.
+# orchestrates the plan-act loop ties the LLM , tools , and habitslogic together.
+
+# implements the coaching systems prompt and error 
+
+
+
+# implement the coaching system prompt  and error handling for dispatch
+
+# the fallback to MockLLM means offline demos even without
+
+
+# user -> Agent -> LLM decides what to do -> Tools ( log_habits / get_streak / most_consistent) 
+
+
+# -> Results -> LLM sees result -> final result -> final response to the user
+
+# import json 
+# import os 
+
+# from tools import TOOL_REGISTRY , TOOL_SHEMAS , TIER_HINTS 
+
+# from mock_llm import MOCKLLM 
+
+
+# from mocl_llm import MockLLM
+
+# import json
+
+# Used to word with JSON 
+
+# this is needed the LLM gives given , the LLM gives tools LLM  
+
+
+# from mock_llm import MockLLM
+
+# import json  used to work with JSON.
+
+
+# this is needed beacuse the llm gives toool arguenents in JSSON form.
+
+
+# import json
+# used to word with JSON 
+
+# This is needed  because the LLM given tools  arguments in JSON forms
+# for examples:
+
+# {"name"} -> "mediated"
+
+# your python code needs to turn that into a python dictionary.
+
+
+
+# import os
+
+# used to access envirornt variable-> 
+
+
+# os.evirorn.get("GITHUB_TOKEN")
+
+
+# gets your GITHUB token from the envirornment 
+
+# these import:
+
+# from tools TOOL_REGISTRY , TOOL_SCHEMA , TIER_HINTS
+
+
+# come from your previous file
+
+# Remember 
+# TOOL_ REGISTRY 
+
+# connect ->
+
+# "log_habits" -> log_habits()
+# "get_stream" -> get_stream()
+# "most_consistent" -> most_consistent()
+
+
+# TOOLS_SCHEMA tells the LLM:
+
+# what tools exists and what and what arguement. they accepts
+
+
+# TIER_HINT contains messsages such as:
+
+# contain ->  contain message such as:
+
+
+# restart -> gets restart nudge started 
+
+
+#started -> you started , keep going 
+#momentum -> builing momentum 
+# strong -> streak , protect it
+
+# MOCKLLM 
+# from mock_llm import MockLLM 
+# this iis yout offline backup LLM
+# if github
+#  Models isn't  available, your programme can your, 
+
+# github models cofiguration:
+
+# BASE_URL = 'http://models.github.ai/inferece'
+
+
+# this tells the OPen AI client:
+
+
+# intead of talking to OPenAI''s normal API , communicate with GitHub Model' 
+
+# inferrence endpoint
+
+
